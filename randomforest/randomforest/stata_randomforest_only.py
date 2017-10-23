@@ -1,8 +1,7 @@
+## Script of random forest in python scikit-learn. Called by randomforest.ado
+## Created by: Jorge Guzman
+  
 
-###########################################################################
-# This script is very simple and allows a user to run a random forest but #
-# does not perform any fancy modeling on the forest                       #
-###########################################################################
 import sys
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.linear_model import LogisticRegression

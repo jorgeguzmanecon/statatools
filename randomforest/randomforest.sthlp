@@ -10,7 +10,7 @@
 	Last Updated: October, 2017
 	Requirements: 
 	- Must have python 2.7 and scikit-learn installed.
-	- Must have files ~/ado/randomforest.ado and ~/ado/randomforest/randomforest_asdfa.py
+	- Must have files ~/ado/randomforest.ado and ~/ado/randomforest/stata_randomforest_only.py
 	
 	Please visit http://www.jorgeguzman.co/code for updates
 
