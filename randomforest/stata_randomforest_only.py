@@ -1,7 +1,8 @@
-## Script of random forest in python scikit-learn. Called by randomforest.ado
-## Created by: Jorge Guzman
-  
 
+###########################################################################
+# This script is very simple and allows a user to run a random forest but #
+# does not perform any fancy modeling on the forest                       #
+###########################################################################
 import sys
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.linear_model import LogisticRegression
@@ -136,24 +137,41 @@ def logit( X,y, train_index):
 
 
 
+## A simple method so that errors fail safe
+def get_roc_score(y, y_pred):
+    try:
+        return skm.roc_auc_score(y, y_pred)
+    except ValueError:
+        print "Error: The ROC Score could not be estimated.  Possibly because y_pred is a multi value parameter"
+        return 0
+
+ 
+
+
 
 #
 # This method predicts all the ROC scores to score the model
 # as well as save an ROC graph
 #
-def print_model_scores(y_pred, y, prediction_index = None, train_index  = None, title="", store_roc = None):
-    
+def get_model_scores(y_pred, y, prediction_index = None, train_index  = None, title="", store_roc = None):
+    scores = {}
     print "\t {0}".format(title)
 
     yg = (~np.isnan(y)) & (~np.isnan(y_pred))
-    print "\t\t ROC Score (Full Sample): {0}".format(skm.roc_auc_score(y[yg],y_pred[yg] ))
+ 
+    roc_full_sample = get_roc_score(y[yg],y_pred[yg])
+    roc_prediction = None
+    roc_train = None
+    print "\t\t ROC Score (Full Sample): {0}".format(roc_full_sample)
 
     if prediction_index is not None:
-        print "\t\t ROC Score (Prediction Sample): {0}".format(skm.roc_auc_score(y[prediction_index][yg],y_pred[prediction_index][yg] ))
+        roc_prediction = get_roc_score(y[prediction_index][yg],y_pred[prediction_index][yg]) 
+        print "\t\t ROC Score (Prediction Sample): {0}".format(roc_prediction)
     
 
     if train_index is not None:
-        print "\t\t ROC Score (Training Sample): {0}".format(skm.roc_auc_score(y[train_index][yg],y_pred[train_index][yg] ))
+        roc_train = get_roc_score(y[train_index][yg],y_pred[train_index][yg])
+        print "\t\t ROC Score (Training Sample): {0}".format(roc_train )
 
         ## If there is a path provided in store_curve, then it is saved in JPG to that path
         if store_roc is not None:
@@ -172,6 +190,11 @@ def print_model_scores(y_pred, y, prediction_index = None, train_index  = None, 
             plt.title('')            
             plt.legend(loc="lower right")
             fig.savefig(store_roc)
+            
+
+    return pd.DataFrame({'roc_full':[roc_full_sample], 'roc_prediction':[roc_prediction], 'roc_train': [roc_train]})
+
+## End get_model_scores 
 
 
 
@@ -257,7 +280,8 @@ store_roc = None
 if hasattr(args, 'store_roc') and args.store_roc is not None:
     store_roc = args.store_roc[0]
 
-print_model_scores(data[str(args.gen)], y, prediction_index = predict_index, train_index  = train_index, title="Random Forest", store_roc = store_roc)
+model_scores = get_model_scores(data[str(args.gen)], y, prediction_index = predict_index, train_index  = train_index, title="Random Forest", store_roc = store_roc)
+
 
 if args.logit:
     print_model_scores(data["{0}_logit".format(str(args.gen))], y, prediction_index = predict_index, train_index  = train_index, title="Logit")
@@ -269,7 +293,11 @@ if args.logit:
 #    n_fold_cross_validation(X, y, train_index, output_file = args.tenfold[0])
 
 # Output Data
-data.to_stata(args.statadta[0] , write_index=False)
+out_dta_file = args.statadta[0]
+out_roc_file = out_dta_file.replace(".dta","") + "_rocscores.dta"
+data.to_stata( out_dta_file , write_index=False, encoding='ascii')
+model_scores.to_stata(out_roc_file , write_index=False, encoding='ascii')
+
 if not roconly: print "\n\n\tOutput stored in {0}".format(args.statadta[0])
 
 if not roconly: print "\n ******* End of Python Script *********\n\n"

@@ -32,6 +32,15 @@ program define randomforest , rclass
     //Call python
     !python ~/ado/randomforest/stata_randomforest_only.py `roconly_param' -n `n_estimators' -g `gen' `logitparam' `train_index_param' `predict_index_param' `store_roc_param' `forestfile' `varlist' 
 
+    local rocfile = trim(subinstr("`forestfile'",".dta","",.))
+    local rocfile  "`rocfile'_rocscores.dta"
+
+    use `rocfile'
+    foreach stat in roc_full roc_prediction roc_train {
+        qui:sum `stat'
+        return scalar `stat'=`r(mean)'
+    }
+    
     //load the new data
     use `forestfile', replace
     
