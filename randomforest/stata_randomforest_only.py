@@ -18,6 +18,13 @@ mpl.use('Agg')
 import matplotlib.pyplot as plt
 
 
+def print_header():
+    print("*****************************************")
+    print("  Random Forest Python Port for Stata ")
+    print("  Developed by Jorge Guzman (jag2367@columbia.edu) ")
+    print("  Version  0.02")
+    print("")
+
 def estimate_percentile_distribution(y_true, y_pred):
     d = pd.DataFrame(y_true, y_pred)
     d.sort_values(y_pred, inplace=True)
@@ -96,7 +103,7 @@ def randomforest(X,y, train_index, report=True):
         for f in range(X.shape[1]):
             if not roconly: print("\t%d. feature %s (%f)" % (f + 1, str(args.varlist[1:][indices[f]]), importances[indices[f]]))
         
-        if not roconly: print "\nRANDOM FOREST COMPLETE" 
+        if not roconly: print("\nRANDOM FOREST COMPLETE")
 
     return preds
 
@@ -131,7 +138,7 @@ def logit( X,y, train_index):
     # for f in range(X.shape[1]):
     #     print("\t%d. feature %s (%f)" % (f + 1, str(args.varlist[1:][indices[f]]), importances[indices[f]]))
  
-    print "\tLOGIT MODEL COMPLETE" 
+    print("\tLOGIT MODEL COMPLETE")
     return preds
 
 
@@ -142,7 +149,7 @@ def get_roc_score(y, y_pred):
     try:
         return skm.roc_auc_score(y, y_pred)
     except ValueError:
-        print "Error: The ROC Score could not be estimated.  Possibly because y_pred is a multi value parameter"
+        print("Error: The ROC Score could not be estimated.  Possibly because y_pred is a multi value parameter")
         return 0
 
  
@@ -155,27 +162,27 @@ def get_roc_score(y, y_pred):
 #
 def get_model_scores(y_pred, y, prediction_index = None, train_index  = None, title="", store_roc = None):
     scores = {}
-    print "\t {0}".format(title)
+    print("\t {0}".format(title))
 
     yg = (~np.isnan(y)) & (~np.isnan(y_pred))
  
     roc_full_sample = get_roc_score(y[yg],y_pred[yg])
     roc_prediction = None
     roc_train = None
-    print "\t\t ROC Score (Full Sample): {0}".format(roc_full_sample)
+    print("\t\t ROC Score (Full Sample): {0}".format(roc_full_sample))
 
     if prediction_index is not None:
         roc_prediction = get_roc_score(y[prediction_index][yg],y_pred[prediction_index][yg]) 
-        print "\t\t ROC Score (Prediction Sample): {0}".format(roc_prediction)
+        print("\t\t ROC Score (Prediction Sample): {0}".format(roc_prediction))
     
 
     if train_index is not None:
         roc_train = get_roc_score(y[train_index][yg],y_pred[train_index][yg])
-        print "\t\t ROC Score (Training Sample): {0}".format(roc_train )
+        print("\t\t ROC Score (Training Sample): {0}".format(roc_train ))
 
         ## If there is a path provided in store_curve, then it is saved in JPG to that path
         if store_roc is not None:
-            print "Storing Curve to: {0}".format(store_roc)
+            print("Storing Curve to: {0}".format(store_roc))
             fpr, tpr, threshold = skm.roc_curve(y[train_index][yg], y_pred[train_index][yg])
             
             fig = plt.figure()
@@ -198,7 +205,14 @@ def get_model_scores(y_pred, y, prediction_index = None, train_index  = None, ti
 
 
 
+def drop_categorical_when_to_stata_fails(data):
+    categorical_cols = data.select_dtypes(['category']).columns
+    return data.drop(axis=1, labels=categorical_cols)
+
+
 #Configure the command line parameters
+print_header()
+
 argparser = argparse.ArgumentParser()
 argparser.add_argument("statadta",nargs=1)
 argparser.add_argument("--roconly", help="Displays only the ROC scores, and nothing else",action='store_true')
@@ -223,17 +237,17 @@ if hasattr(args, 'roconly') and args.roconly:
 
 #Print the command as it was typed. Good for debugging.
 
-if not roconly: print " \n\n ******* Starting Random Forest in Python ********* "
-if not roconly: print "\tI.COMMAND \n\n-->$\tpython {0}".format(" ".join(sys.argv[:]))
+if not roconly: print(" \n\n ******* Starting Random Forest in Python ********* ")
+if not roconly: print("\tI.COMMAND \n\n-->$\tpython {0}".format(" ".join(sys.argv[:])))
 #print "\t print_model = {0}".format(print_model)
 
 # Load Stata File
 data = pd.read_stata(args.statadta[0])
 
 #Split into prediction and test
-print dir(args)
+print(dir(args))
 if hasattr(args, 'train_data') and args.train_data is not None:
-    if not roconly: print "Train Data: {0}".format(args.train_data)
+    if not roconly: print("Train Data: {0}".format(args.train_data))
 
     choice_col = data[str(args.train_data)]
     train_index = data[choice_col == 1].index
@@ -257,7 +271,7 @@ X = data[Xvars]
 
 
 #run commands
-if not roconly: print "\tII.MODELS \n\t{0}".format(" ".join(sys.argv[:]))
+if not roconly: print("\tII.MODELS \n\t{0}".format(" ".join(sys.argv[:])))
 preds = randomforest(X,y, train_index)
 pred_var = str(args.gen)
 data[pred_var] = np.nan
@@ -274,7 +288,7 @@ if args.logit:
 
 
 #Prediction Results
-print "\n\n\t III. PREDICTION STATISTICS"
+print("\n\n\t III. PREDICTION STATISTICS")
 
 store_roc = None
 if hasattr(args, 'store_roc') and args.store_roc is not None:
@@ -288,17 +302,33 @@ if args.logit:
 
 
 #Ten Fold Cross Validation
+# TODO: this piece needs to be setup, currently commented.
 #if args.tenfold is not None &  len(args.tenfold[0]) > 0 :
 #    print "\n\n\t IV. TEN FOLD CROSS VALIDATION"
 #    n_fold_cross_validation(X, y, train_index, output_file = args.tenfold[0])
 
 # Output Data
 out_dta_file = args.statadta[0]
+#pdb.set_trace()
 out_roc_file = out_dta_file.replace(".dta","") + "_rocscores.dta"
-data.to_stata( out_dta_file , write_index=False, encoding='ascii')
-model_scores.to_stata(out_roc_file , write_index=False, encoding='ascii')
 
-if not roconly: print "\n\n\tOutput stored in {0}".format(args.statadta[0])
+try:
+    # Only latin-1 and ascii are supported in to_stata() if one fails, try the other
+    # BUG: this is an odd error that fails only when calling the command from stata directly, but not on the shell.
+    #      this is just a workaround for now
+    data.to_stata( out_dta_file , write_index=False, encoding='ascii')
+    model_scores.to_stata(out_roc_file , write_index=False, encoding='ascii')
+except UnicodeEncodeError:
+    print ("*********\n\n \t\t WARNING: there was an error saving the data and the categorical variables had to be changed to string")
+    print ("\t\tExisting data stored in data.forest.pickle")
+    data.to_pickle("data.forest.pickle")
+    data = drop_categorical_when_to_stata_fails(data)
+    data.to_stata( out_dta_file , write_index=False, encoding='latin-1')
+    model_scores.to_stata(out_roc_file , write_index=False, encoding='latin-1')
 
-if not roconly: print "\n ******* End of Python Script *********\n\n"
+    
+
+if not roconly: print("\n\n\tOutput stored in {0}".format(args.statadta[0]))
+
+if not roconly: print("\n ******* End of Python Script *********\n\n")
 # 

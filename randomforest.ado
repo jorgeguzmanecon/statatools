@@ -30,7 +30,7 @@ program define randomforest , rclass
     qui: save  `forestfile' , replace
     
     //Call python
-    !python ~/ado/randomforest/stata_randomforest_only.py `roconly_param' -n `n_estimators' -g `gen' `logitparam' `train_index_param' `predict_index_param' `store_roc_param' `forestfile' `varlist' 
+    !python3 ~/ado/randomforest/stata_randomforest_only.py `roconly_param' -n `n_estimators' -g `gen' `logitparam' `train_index_param' `predict_index_param' `store_roc_param' `forestfile' `varlist' 
 
     local rocfile = trim(subinstr("`forestfile'",".dta","",.))
     local rocfile  "`rocfile'_rocscores.dta"
