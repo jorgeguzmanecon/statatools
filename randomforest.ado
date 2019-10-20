@@ -1,7 +1,7 @@
 capture program drop randomforest
 
 program define randomforest , rclass
-  syntax varlist , [n_estimators(integer 20)] gen(string) [logit] [train_index(varname)] [predict_index(varname)] [roconly] [store_roc(string)]
+  syntax varlist , [n_estimators(integer 20)] gen(string) [logit] [train_index(varname)] [predict_index(varname)] [roconly] [store_roc(string)] [store_features(string)]
 
 {
 
@@ -22,6 +22,10 @@ program define randomforest , rclass
     if "`store_roc'" != "" {
         local store_roc_param --store_roc `store_roc'
     }
+
+    if "`store_features'" != "" {
+        local store_features_param --store_features `store_features'
+    }        
     
     
     //store data in a tempfile and call python
@@ -30,7 +34,7 @@ program define randomforest , rclass
     qui: save  `forestfile' , replace
     
     //Call python
-    !python3 ~/ado/randomforest/stata_randomforest_only.py `roconly_param' -n `n_estimators' -g `gen' `logitparam' `train_index_param' `predict_index_param' `store_roc_param' `forestfile' `varlist' 
+    !python3 ~/ado/randomforest/stata_randomforest_only.py `roconly_param' -n `n_estimators' -g `gen' `logitparam' `train_index_param' `predict_index_param' `store_roc_param' `store_features_param' `forestfile' `varlist' 
 
     local rocfile = trim(subinstr("`forestfile'",".dta","",.))
     local rocfile  "`rocfile'_rocscores.dta"

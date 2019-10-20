@@ -73,7 +73,7 @@ def n_fold_cross_validation(X,y, train_index,output_file, folds=10):
 #################################
  
 
-def randomforest(X,y, train_index, report=True):
+def randomforest(X,y, train_index, report=True, store_features = None):
     global roconly
 
     Xt = X.loc[train_index,:]
@@ -88,26 +88,38 @@ def randomforest(X,y, train_index, report=True):
     (Xc, yc) = (X_imp_train[~np.isnan(y_train)] , y_train[~np.isnan(y_train)])
 
     # Random Forest Classifier
-    clt = RandomForestClassifier(min_samples_split=2, random_state=99, n_estimators = 30, verbose = 1, max_depth=5)
+    #    clt = RandomForestClassifier(min_samples_split=2, random_state=99, n_estimators = 30, verbose = 1, max_depth=5)
+    clt = RandomForestClassifier(min_samples_split=2, random_state=99, n_estimators = 70, verbose = 1, max_depth = 5)
     clt = clt.fit(Xc,yc)
     preds = clt.predict_proba(X_imp)[:,1]
 
     if report is True:
-        #Print the Features Importance
-        importances = clt.feature_importances_
-        std = np.std([tree.feature_importances_ for tree in clt.estimators_], axis=0)
-        indices = np.argsort(importances)[::-1]
-        
-        if not roconly: print("\n\t RANDOM FOREST FEATURE RANKING")
+        output_feature_importance(clt, store_features = store_features)
 
-        for f in range(X.shape[1]):
-            if not roconly: print("\t%d. feature %s (%f)" % (f + 1, str(args.varlist[1:][indices[f]]), importances[indices[f]]))
-        
-        if not roconly: print("\nRANDOM FOREST COMPLETE")
-
+    print("\nRANDOM FOREST COMPLETE")
     return preds
 
 
+def output_feature_importance(clt, store_features = None):
+    global roconly
+
+    s_importances = clt.feature_importances_
+    df_dict = {'feature_name':pd.Series(args.varlist[1:]) , 'feature_importance':pd.Series(s_importances)}
+    df_importances = pd.DataFrame(df_dict)
+
+    order = np.argsort(s_importances)[::-1]
+    df_importances = df_importances.iloc[order].reset_index(drop=True)
+
+    if not roconly: print("\n\t RANDOM FOREST FEATURE RANKING")
+
+    # first print all features to output
+    for index, f in df_importances.iterrows():
+        if not roconly: 
+            print("\t%d. feature %s (%f)" % (index, f['feature_name'], f['feature_importance']))
+
+    # then store them in DTA
+    if store_features is not None and not roconly:
+        df_importances.to_stata(store_features)
 
 
 def logit( X,y, train_index):
@@ -167,43 +179,48 @@ def get_model_scores(y_pred, y, prediction_index = None, train_index  = None, ti
     yg = (~np.isnan(y)) & (~np.isnan(y_pred))
  
     roc_full_sample = get_roc_score(y[yg],y_pred[yg])
-    roc_prediction = None
-    roc_train = None
     print("\t\t ROC Score (Full Sample): {0}".format(roc_full_sample))
 
     if prediction_index is not None:
         roc_prediction = get_roc_score(y[prediction_index][yg],y_pred[prediction_index][yg]) 
         print("\t\t ROC Score (Prediction Sample): {0}".format(roc_prediction))
     
-
     if train_index is not None:
         roc_train = get_roc_score(y[train_index][yg],y_pred[train_index][yg])
-        print("\t\t ROC Score (Training Sample): {0}".format(roc_train ))
+        print("\t\t ROC Score (Training Sample): {0}".format(roc_train))
 
-        ## If there is a path provided in store_curve, then it is saved in JPG to that path
-        if store_roc is not None:
-            print("Storing Curve to: {0}".format(store_roc))
-            fpr, tpr, threshold = skm.roc_curve(y[train_index][yg], y_pred[train_index][yg])
-            
-            fig = plt.figure()
-            lw = 2
-            roc_auc = skm.auc(fpr, tpr, reorder=True)
-            plt.plot(fpr, tpr, color='darkorange', lw=lw, label='ROC curve (score = %0.2f)' % roc_auc)
-            plt.plot([0, 1], [0, 1], color='navy', lw=lw, linestyle='--')
-            plt.xlim([0.0, 1.0])
-            plt.ylim([0.0, 1.005])
-            plt.xlabel('False Positive Rate')
-            plt.ylabel('True Positive Rate')
-            plt.title('')            
-            plt.legend(loc="lower right")
-            fig.savefig(store_roc)
-            
+    if store_roc is not None:        
+        store_roc_plot(y_pred = y_pred, y=y, yg= yg , prediction_index = prediction_index , train_index = train_index , store_roc = store_roc)
 
     return pd.DataFrame({'roc_full':[roc_full_sample], 'roc_prediction':[roc_prediction], 'roc_train': [roc_train]})
-
 ## End get_model_scores 
 
 
+def store_roc_plot(y_pred, y,  yg, prediction_index,train_index, store_roc):
+        pred_index_provided = prediction_index is not None
+        if pred_index_provided:
+            roc_index = prediction_index
+            plot_title = ""
+        else:
+            roc_index = train_index
+            plot_title = "ROC (estimated with training index)"
+
+        print("Storing Curve to: {0}".format(store_roc))
+        fpr, tpr, threshold = skm.roc_curve(y[roc_index][yg], y_pred[roc_index][yg])
+        
+        fig = plt.figure()
+        lw = 2
+        roc_auc = skm.auc(fpr, tpr, reorder=True)
+        plt.plot(fpr, tpr, color='darkorange', lw=lw, label='ROC curve (score = %0.2f)' % roc_auc)
+        plt.plot([0, 1], [0, 1], color='navy', lw=lw, linestyle='--')
+        plt.xlim([0.0, 1.0])
+        plt.ylim([0.0, 1.005])
+        plt.xlabel('False Positive Rate')
+        plt.ylabel('True Positive Rate')
+        plt.title(plot_title)
+        plt.legend(loc="lower right")
+        fig.savefig(store_roc)
+        
 
 def drop_categorical_when_to_stata_fails(data):
     categorical_cols = data.select_dtypes(['category']).columns
@@ -211,6 +228,8 @@ def drop_categorical_when_to_stata_fails(data):
 
 
 #Configure the command line parameters
+
+#TODO: This method is very long -- should make simpler
 print_header()
 
 argparser = argparse.ArgumentParser()
@@ -225,6 +244,7 @@ argparser.add_argument("--train_data",help="A variable name that has a value of 
 argparser.add_argument("--predict_data",help="A variable name that has a value of 1 only for the observations that should be included in the prediction")
 argparser.set_defaults(logit=False)
 argparser.add_argument("--tenfold", help="Runs a 10 fold cross validation and stores it in fileaname", nargs=1)
+argparser.add_argument("--store_features", help="Is the dta file that will store the features, if provided", nargs=1)
 args = argparser.parse_args()
 
 
@@ -246,6 +266,7 @@ data = pd.read_stata(args.statadta[0])
 
 #Split into prediction and test
 print(dir(args))
+
 if hasattr(args, 'train_data') and args.train_data is not None:
     if not roconly: print("Train Data: {0}".format(args.train_data))
 
@@ -272,10 +293,14 @@ X = data[Xvars]
 
 #run commands
 if not roconly: print("\tII.MODELS \n\t{0}".format(" ".join(sys.argv[:])))
-preds = randomforest(X,y, train_index)
+
+if hasattr(args,'store_features') and args.store_features is not None:
+     store_features = args.store_features[0]
+else:
+    store_features = None
+
+preds = randomforest(X,y, train_index, report=True,store_features=store_features )
 pred_var = str(args.gen)
-data[pred_var] = np.nan
-#data[pred_var][predict_index] = preds[predict_index]
 data[pred_var] = preds
 
 if args.logit:
